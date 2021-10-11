@@ -13,31 +13,48 @@
 # after this has been done, you can type ./setup.sh to run the script.
 #
 ###############################################################################
+
 yum install openssl098e.i686 glibc.i686 libstdc++.i686 -y
 
 OS=`uname`;
+
+if [ "$(id -u)" != "0" ]; then
+	echo "You must be root to execute the script. Exiting."
+	exit 1
+fi
 
 #For FreeBSD 11
 if [ ! -e /usr/bin/perl ] && [ -e /usr/local/bin/perl ]; then
 	ln -s /usr/local/bin/perl /usr/bin/perl
 fi
 
-if [ ! -e /usr/bin/perl ]; then
+if [ "$OS" = "FreeBSD" ]; then
+	WGET_PATH=/usr/local/bin/wget
+else
+	WGET_PATH=/usr/bin/wget
+fi
 
-	if [ "$1" = "auto" ]; then
-		if [ "${OS}" = "FreeBSD" ]; then
-			pkg install -y perl5 wget
-		elif [ -e /etc/debian_version ]; then
-			apt-get -y install perl wget
-		else
-			yum -y install perl wget
-		fi
+if [ ! -e /usr/bin/perl ] || [ ! -e ${WGET_PATH} ]; then
+
+	if [ "${OS}" = "FreeBSD" ]; then
+		pkg install -y perl5 wget
+		rehash
+	elif [ -e /etc/debian_version ]; then
+		apt-get -y install perl wget
+	else
+		yum -y install perl wget
 	fi
 
 	if [ ! -e /usr/bin/perl ]; then
 		echo "Cannot find perl. Please run pre-install commands:";
-		echo "    http://help.directadmin.com/item.php?id=354";
+		echo "    https://help.directadmin.com/item.php?id=354";
 		exit 1;
+	fi
+
+	if [ ! -e ${WGET_PATH} ]; then
+		echo "Cannot find ${WGET_PATH}. Please run pre-install commands:";
+		echo "    https://help.directadmin.com/item.php?id=354";
+		exit 80;
 	fi
 fi
 
@@ -71,23 +88,12 @@ if [ "$1" = "beta" ] || [ "$2" = "beta" ]; then
 fi
 
 FTP_HOST=files.directadmin.com
-if [ "$OS" = "FreeBSD" ]; then
-	WGET_PATH=/usr/local/bin/wget
-else
-	WGET_PATH=/usr/bin/wget
-fi
 
-WGET_OPTION="";
+WGET_OPTION="--no-dns-cache";
 COUNT=`$WGET_PATH --help | grep -c no-check-certificate`
 if [ "$COUNT" -ne 0 ]; then
-	WGET_OPTION="--no-check-certificate";
+	WGET_OPTION="--no-check-certificate ${WGET_OPTION}";
 fi
-
-#WGET_10=`$WGET_PATH -V 2>/dev/null | head -n1 | grep -c 1.10`
-#WGET_OPTION="";
-#if [ $WGET_10 -eq 1 ]; then
-#	WGET_OPTION="--no-check-certificate";
-#fi
 
 SYSTEMD=no
 SYSTEMDDIR=/etc/systemd/system
@@ -100,10 +106,22 @@ fi
 CID=0
 LID=0
 HOST=`hostname -f`;
+if [ "${HOST}" = "" ]; then
+	if [ -x /usr/bin/hostnamectl ]; then
+		HOST=`/usr/bin/hostnamectl status | grep 'hostname:' | grep -v 'n/a' | head -n1 | awk '{print $3}'`
+	fi
+fi
+
 CMD_LINE=0
 AUTO=0
 ETH_DEV=eth0
 IP=0
+OS_OVERRIDE_FILE=/root/.os_override
+
+GET_LICENSE=1
+if [ -s /root/.skip_get_license ]; then
+	GET_LICENSE=0
+fi
 
 if [ $# -gt 0 ]; then
 case "$1" in
