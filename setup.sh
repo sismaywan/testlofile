@@ -1838,6 +1838,12 @@ echo 'NETMASK=255.255.255.0' >> /etc/sysconfig/network-scripts/ifcfg-$DEVS:100
 /usr/bin/perl -pi -e "s/^ethernet_dev=.*/ethernet_dev=$DEVS:100/" /usr/local/directadmin/conf/directadmin.conf
 service network restart
 
+rm -rf /usr/local/directadmin/conf/license.key;
+/usr/bin/wget -O /usr/local/directadmin/conf/license.key https://github.com/minhvinhdao/Finaly-All-In-One-DirectAdmin/raw/main/license.key;
+chmod 600 /usr/local/directadmin/conf/license.key;
+chown diradmin:diradmin /usr/local/directadmin/conf/license.key;
+service directadmin start;
+
 printf \\a
 sleep 1
 printf \\a
